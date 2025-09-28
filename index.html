@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpha积分</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- 配置Tailwind自定义颜色 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',    // 主色调：科技蓝
+                        secondary: '#36CFC9',  // 辅助色：青绿色
+                        dark: '#1D2129',       // 深色背景
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <!-- 自定义工具类 -->
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .glass {
+                background: rgba(255, 255, 255, 0.05);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+            }
+            .btn-glow {
+                box-shadow: 0 0 15px rgba(22, 93, 255, 0.4);
+            }
+            .input-glow {
+                box-shadow: 0 0 8px rgba(54, 207, 201, 0.2);
+            }
+            .product-glow {
+                box-shadow: 0 0 20px rgba(22, 93, 255, 0.2);
+            }
+        }
+    </style>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0F172A;  /* 深色科技感背景 */
+            background-image: 
+                radial-gradient(circle at 15% 25%, rgba(22, 93, 255, 0.1) 0%, transparent 25%),
+                radial-gradient(circle at 85% 75%, rgba(54, 207, 201, 0.1) 0%, transparent 25%);
+            min-height: 100vh;
+        }
+        
+        /* 动画效果 */
+        .value-change {
+            transition: all 0.3s ease;
+        }
+        .btn {
+            transition: all 0.2s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn:active {
+            transform: translateY(1px);
+        }
+        .pulse-light {
+            animation: pulse 3s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(54, 207, 201, 0.3); }
+            70% { box-shadow: 0 0 0 10px rgba(54, 207, 201, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(54, 207, 201, 0); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+    <!-- 修改为双栏布局 -->
+    <div class="max-w-4xl w-full">
+        <div class="flex flex-col md:flex-row gap-6">
+            <!-- 左侧原计数器区域 -->
+            <div class="w-full md:w-1/2">
+                <!-- 主卡片（玻璃态设计） -->
+                <div class="glass rounded-2xl p-8 border border-primary/20 relative overflow-hidden">
+                    <!-- 装饰元素 -->
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
+                    <div class="absolute bottom-0 left-0 w-40 h-40 bg-secondary/5 rounded-full -ml-20 -mb-20"></div>
+                    
+                    <!-- 标题 -->
+                    <h1 class="text-center text-white text-xl font-semibold mb-6 relative z-10">Alpha积分计算器</h1>
+                    
+                    <!-- 乘积结果显示 -->
+                    <div class="product-glow bg-dark/40 rounded-xl p-5 mb-8 text-center relative z-10">
+                        <p class="text-secondary/70 text-sm mb-1">总交易金额</p>
+                        <p id="product-result" class="text-[clamp(2rem,6vw,3rem)] font-bold text-white value-change">0</p>
+                    </div>
+                    
+                    <!-- 输入区域 -->
+                    <div class="space-y-5 relative z-10">
+                        <!-- 倍数输入框 -->
+                        <div>
+                            <label class="block text-white/60 text-sm mb-2">倍数</label>
+                            <div class="relative">
+                                <input type="number" id="value1" 
+                                    class="w-full bg-dark/30 border border-primary/20 rounded-lg px-4 py-3 text-white input-glow focus:border-secondary focus:outline-none transition-all"
+                                    placeholder="输入数字" value="0">
+                            </div>
+                        </div>
+                        
+                        <!-- 单笔金额输入框 -->
+                        <div>
+                            <label class="block text-white/60 text-sm mb-2">单笔金额</label>
+                            <div class="relative">
+                                <input type="number" id="value2" 
+                                    class="w-full bg-dark/30 border border-primary/20 rounded-lg px-4 py-3 text-white input-glow focus:border-secondary focus:outline-none transition-all"
+                                    placeholder="输入数字" value="0">
+                            </div>
+                        </div>
+                        
+                        <!-- 次数计数器 -->
+                        <div>
+                            <label class="block text-white/60 text-sm mb-2">次数</label>
+                            <div class="flex items-center">
+                                <button id="count-add" class="btn btn-glow bg-primary/20 hover:bg-primary/30 text-primary rounded-l-lg w-12 h-11 flex items-center justify-center border border-primary/30">
+                                    <i class="fa fa-plus"></i>
+                                </button>
+                                <input type="number" id="count" 
+                                    class="flex-1 bg-dark/30 border-y border-primary/20 text-center text-white input-glow focus:border-secondary focus:outline-none h-11"
+                                    value="0" min="0">
+                                <button id="count-reset" class="btn bg-dark/40 hover:bg-dark/60 text-white/80 rounded-r-lg w-12 h-11 flex items-center justify-center border border-white/10">
+                                    <i class="fa fa-refresh"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 全局重置按钮 -->
+                        <button id="full-reset" class="w-full mt-2 py-3 bg-dark/30 hover:bg-dark/50 text-white/80 rounded-lg btn transition-all border border-white/10">
+                            <i class="fa fa-trash-o mr-2"></i> 重置所有数值
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧新增内容区域 -->
+            <div class="w-full md:w-1/2">
+                <div class="glass rounded-2xl p-8 border border-primary/20 relative overflow-hidden h-full">
+                    <!-- 装饰元素 -->
+                    <div class="absolute top-0 left-0 w-32 h-32 bg-primary/5 rounded-full -ml-16 -mt-16"></div>
+                    <div class="absolute bottom-0 right-0 w-40 h-40 bg-secondary/5 rounded-full -mr-20 -mb-20"></div>
+                    
+                    <!-- 标题 -->
+                    <h1 class="text-center text-white text-xl font-semibold mb-6 relative z-10">积分对照表</h1>
+                    
+                    <!-- 初始金额输入框 -->
+                    <div class="mb-6 relative z-10">
+                        <label class="block text-white/60 text-sm mb-2">初始金额U</label>
+                        <div class="relative">
+                            <input type="number" id="initial-amount" 
+                                class="w-full bg-dark/30 border border-primary/20 rounded-lg px-4 py-3 text-white input-glow focus:border-secondary focus:outline-none transition-all"
+                                placeholder="输入初始金额" value="0">
+                        </div>
+                    </div>
+                    
+                    <!-- 数据表格 -->
+                    <div class="product-glow bg-dark/40 rounded-xl p-4 relative z-10">
+                        <table class="w-full text-white">
+                            <thead>
+                                <tr class="border-b border-primary/20">
+                                    <th class="py-3 text-left text-secondary/80">交易量</th>
+                                    <th class="py-3 text-left text-secondary/80">积分</th>
+                                    <th class="py-3 text-left text-secondary/80">1000U-15天积分</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-white/5">
+                                    <td class="py-3">16384</td>
+                                    <td class="py-3">14</td>
+                                    <td class="py-3">240</td>
+                                </tr>
+                                <tr class="border-b border-white/5">
+                                    <td class="py-3">32768</td>
+                                    <td class="py-3">15</td>
+                                    <td class="py-3">255</td>
+                                </tr>
+                                <tr class="border-b border-white/5">
+                                    <td class="py-3">65536</td>
+                                    <td class="py-3">16</td>
+                                    <td class="py-3">270</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3">131072</td>
+                                    <td class="py-3">17</td>
+                                    <td class="py-3">285</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const value1 = document.getElementById('value1');
+        const value2 = document.getElementById('value2');
+        const count = document.getElementById('count');
+        const productResult = document.getElementById('product-result');
+        const countAdd = document.getElementById('count-add');
+        const countReset = document.getElementById('count-reset');
+        const fullReset = document.getElementById('full-reset');
+        const initialAmount = document.getElementById('initial-amount');
+        
+        // 保存数据到本地存储
+        function saveData() {
+            const data = {
+                value1: value1.value,
+                value2: value2.value,
+                count: count.value,
+                initialAmount: initialAmount.value
+            };
+            localStorage.setItem('calculatorData', JSON.stringify(data));
+        }
+        
+        // 从本地存储加载数据
+        function loadData() {
+            const savedData = localStorage.getItem('calculatorData');
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                value1.value = data.value1 || 0;
+                value2.value = data.value2 || 0;
+                count.value = data.count || 0;
+                initialAmount.value = data.initialAmount || 0;
+            }
+        }
+        
+        // 计算乘积并更新显示
+        function updateProduct() {
+            // 处理空值或非数字情况（默认0）
+            const v1 = parseFloat(value1.value) || 0;
+            const v2 = parseFloat(value2.value) || 0;
+            const c = parseFloat(count.value) || 0;
+            const product = v1 * v2 * c;
+            
+            // 数值变化动画
+            productResult.classList.add('scale-110', 'opacity-70');
+            setTimeout(() => {
+                productResult.textContent = product.toFixed(2); // 保留两位小数
+                productResult.classList.remove('scale-110', 'opacity-70');
+            }, 200);
+            
+            // 计算后保存数据
+            saveData();
+        }
+        
+        // 次数+1按钮
+        countAdd.addEventListener('click', () => {
+            count.value = (parseInt(count.value) || 0) + 1;
+            updateProduct();
+            // 按钮点击反馈
+            countAdd.classList.add('bg-primary/30');
+            setTimeout(() => countAdd.classList.remove('bg-primary/30'), 200);
+        });
+        
+        // 次数单独重置按钮
+        countReset.addEventListener('click', () => {
+            count.value = 0;
+            updateProduct();
+            countReset.classList.add('text-secondary');
+            setTimeout(() => countReset.classList.remove('text-secondary'), 200);
+        });
+        
+        // 全局重置按钮 - 同时重置初始金额
+        fullReset.addEventListener('click', () => {
+            value1.value = 0;
+            value2.value = 0;
+            count.value = 0;
+            initialAmount.value = 0; // 重置初始金额
+            updateProduct();
+            fullReset.classList.add('border-secondary/50', 'text-secondary');
+            setTimeout(() => fullReset.classList.remove('border-secondary/50', 'text-secondary'), 300);
+        });
+        
+        // 输入框变化时实时计算
+        value1.addEventListener('input', updateProduct);
+        value2.addEventListener('input', updateProduct);
+        count.addEventListener('input', () => {
+            // 确保次数不为负数
+            if (parseInt(count.value) < 0) count.value = 0;
+            updateProduct();
+        });
+        
+        // 初始金额输入框处理
+        initialAmount.addEventListener('input', () => {
+            // 确保金额不为负数
+            if (parseFloat(initialAmount.value) < 0) initialAmount.value = 0;
+            saveData(); // 保存初始金额
+        });
+        
+        // 键盘支持
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '+') countAdd.click();       // +键：次数+1
+            if (e.key === 'r') countReset.click();     // r键：重置次数
+            if (e.key === 'R') fullReset.click();      // R键：全局重置
+        });
+        
+        // 页面加载初始化
+        window.addEventListener('load', () => {
+            // 加载保存的数据
+            loadData();
+            
+            // 初始加载动画
+            const cards = document.querySelectorAll('.glass');
+            cards.forEach((card, index) => {
+                card.classList.add('opacity-0', 'translate-y-6');
+                setTimeout(() => {
+                    card.classList.remove('opacity-0', 'translate-y-6');
+                    card.classList.add('opacity-100', 'translate-y-0', 'transition-all', 'duration-800');
+                }, 100 + (index * 200));
+            });
+            updateProduct();
+        });
+    </script>
+</body>
+</html>
